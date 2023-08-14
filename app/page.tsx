@@ -1,5 +1,33 @@
-import Image from "next/image";
+import SignInButton from "@/components/SignInButton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getAuthSession } from "@/lib/nextAuth";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return <h1 className="text-3xl font-bold underline">Kwizzing</h1>;
+export default async function Home() {
+  const session = await getAuthSession();
+  if (session?.user) {
+    redirect("/dashboard");
+  }
+  return (
+    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+      <Card className="w-[320px]">
+        <CardHeader>
+          <CardTitle>Welcome to Kwizzing &#127881;</CardTitle>
+          <CardDescription>
+            Kwizzing is a platform that allows you to create quiz using AI and
+            share it with your friends.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignInButton text="Sign In with google" />
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
