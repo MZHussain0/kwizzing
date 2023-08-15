@@ -1,35 +1,53 @@
 ﻿import { getAuthSession } from "@/lib/nextAuth";
 import prismadb from "@/lib/prismadb";
 import { quizCreationSchema } from "@/schemas/form/quiz";
+import axios from "axios";
+import { log } from "console";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import axios from "axios";
 
-export const POST = async (req: Request, res: Response) => {
+export async function POST(req: Request, res: Response) {
   try {
     const session = await getAuthSession();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "You must be logged in to create a game." },
+        {
+          status: 401,
+        }
+      );
     }
-
     const body = await req.json();
-
-    const { amount, topic, type } = quizCreationSchema.parse(body);
-
+    const { topic, type, amount } = quizCreationSchema.parse(body);
     const game = await prismadb.game.create({
       data: {
         gameType: type,
         timeStarted: new Date(),
-        userId: session?.user.id,
-        topic: topic,
+        userId: session.user.id,
+        topic,
       },
     });
+    // await prisma.topic_count.upsert({
+    //   where: {
+    //     topic,
+    //   },
+    //   create: {
+    //     topic,
+    //     count: 1,
+    //   },
+    //   update: {
+    //     count: {
+    //       increment: 1,
+    //     },
+    //   },
+    // });
 
-    const { data } = await axios.post(`${process.env.API_URL}/api/questions`, {
+    const { data } = await axios.post(`${process.env.API_URL!}/api/questions`, {
       amount,
       topic,
       type,
     });
+    console.log("🚀 ~ data:", data);
 
     if (type === "mcq") {
       type mcqQuestion = {
@@ -39,14 +57,15 @@ export const POST = async (req: Request, res: Response) => {
         option2: string;
         option3: string;
       };
-      let manyData = data.questions.map((question: mcqQuestion) => {
-        let options = [
-          question.answer,
+
+      const manyData = data.questions.map((question: mcqQuestion) => {
+        // mix up the options lol
+        const options = [
           question.option1,
           question.option2,
           question.option3,
-        ];
-        options = options.sort(() => Math.random() - 0.5);
+          question.answer,
+        ].sort(() => Math.random() - 0.5);
         return {
           question: question.question,
           answer: question.answer,
@@ -64,37 +83,34 @@ export const POST = async (req: Request, res: Response) => {
         question: string;
         answer: string;
       };
-
-      let manyData = data.questions.map((question: openQuestion) => {
-        return {
-          question: question.question,
-          answer: question.answer,
-          gameId: game.id,
-          questionType: "open_ended",
-        };
-      });
       await prismadb.question.createMany({
-        data: manyData,
+        data: data.questions.map((question: openQuestion) => {
+          return {
+            question: question.question,
+            answer: question.answer,
+            gameId: game.id,
+            questionType: "open_ended",
+          };
+        }),
       });
     }
 
-    return NextResponse.json({
-      gameId: game.id,
-    });
+    return NextResponse.json({ gameId: game.id }, { status: 200 });
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
+        { error: error.issues },
         {
-          error: error.issues,
-        },
-        { status: 400 }
+          status: 400,
+        }
+      );
+    } else {
+      return NextResponse.json(
+        { error: "An unexpected error occurred." },
+        {
+          status: 500,
+        }
       );
     }
   }
-  return NextResponse.json(
-    {
-      error: "Something went wrong",
-    },
-    { status: 500 }
-  );
-};
+}

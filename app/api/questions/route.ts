@@ -1,20 +1,22 @@
 ﻿import { strict_output } from "@/lib/gpt";
 import { getAuthSession } from "@/lib/nextAuth";
-import { quizCreationSchema } from "@/schemas/form/quiz";
+import { getQuestionsSchema } from "@/schemas/question";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-// POST: /api/questions
-export const POST = async (req: Request, res: Response) => {
+export async function POST(req: Request, res: Response) {
   try {
     const session = await getAuthSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // if (!session?.user) {
+    //   return NextResponse.json(
+    //     { error: "You must be logged in to create a game." },
+    //     {
+    //       status: 401,
+    //     }
+    //   );
+    // }
     const body = await req.json();
-
-    const { amount, topic, type } = quizCreationSchema.parse(body);
-
+    const { amount, topic, type } = getQuestionsSchema.parse(body);
     let questions: any;
     if (type === "open_ended") {
       questions = await strict_output(
@@ -42,14 +44,21 @@ export const POST = async (req: Request, res: Response) => {
         }
       );
     }
-    return NextResponse.json({ questions }, { status: 200 });
+    return NextResponse.json(
+      {
+        questions: questions,
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
+        { error: error.issues },
         {
-          error: error.issues,
-        },
-        { status: 400 }
+          status: 400,
+        }
       );
     } else {
       console.error("elle gpt error", error);
@@ -61,4 +70,4 @@ export const POST = async (req: Request, res: Response) => {
       );
     }
   }
-};
+}
