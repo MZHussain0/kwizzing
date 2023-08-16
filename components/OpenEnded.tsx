@@ -23,6 +23,7 @@ const OpenEnded = ({ game }: Props) => {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [hasEnded, setHasEnded] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(new Date());
+  const [blankAnswer, setBlankAnswer] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,9 +36,14 @@ const OpenEnded = ({ game }: Props) => {
 
   const { mutate: checkAnswer, isLoading: isCheckingAnswer } = useMutation({
     mutationFn: async () => {
+      let filledAnswer = blankAnswer;
+      document.querySelectorAll("#user-blank-input").forEach((input) => {
+        filledAnswer = filledAnswer.replace("_____", input.value);
+        input.value = "";
+      });
       const payload: z.infer<typeof checkAnswerSchema> = {
         questionId: currentQuestion.id,
-        userAnswer: "",
+        userAnswer: filledAnswer,
       };
       const response = await axios.post("/api/checkAnswer", payload);
       return response.data;
@@ -75,6 +81,7 @@ const OpenEnded = ({ game }: Props) => {
     isCheckingAnswer,
     game.questions.length,
     questionIndex,
+    blankAnswer,
   ]);
 
   useEffect(() => {
@@ -149,10 +156,13 @@ const OpenEnded = ({ game }: Props) => {
       </Card>
 
       <div className="flex flex-col items-center justify-center w-full mt-4">
-        <BlankAnswerInput answer={currentQuestion.answer} />
+        <BlankAnswerInput
+          answer={currentQuestion.answer}
+          setBlankAnswer={setBlankAnswer}
+        />
 
         <Button
-          className="mt-2"
+          className="mt-8"
           onClick={() => handleNext()}
           disabled={isCheckingAnswer}>
           {isCheckingAnswer && (
