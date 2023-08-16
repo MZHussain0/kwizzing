@@ -29,10 +29,12 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import LoadingQuestions from "@/components/LoadingQuestions";
 
-type Props = {};
+type Props = {
+  topicParams?: string;
+};
 type Input = z.infer<typeof quizCreationSchema>;
 
-const QuizCreation = (props: Props) => {
+const QuizCreation = ({ topicParams }: Props) => {
   const router = useRouter();
   const [showLoader, setShowLoader] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -40,7 +42,7 @@ const QuizCreation = (props: Props) => {
     mutationFn: async ({ amount, topic, type }: Input) => {
       const response = await axios.post("/api/game", {
         amount,
-        topic,
+        topic: topicParams,
         type,
       });
       return response.data;
